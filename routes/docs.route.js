@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { CreateNewFile, FindFileById, ListAllFiles } from "../utils/StorageManagement.utils.js";
+import { CreateNewFile, FindFileById, ListAllFiles } from "../handlers/StorageManagement.handler.js";
 
 const router = Router();
 

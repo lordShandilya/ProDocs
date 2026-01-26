@@ -1,6 +1,7 @@
 import e from "express";
+import { WebSocketServer } from "ws"; 
 import docsRouter from "./routes/docs.route.js";
-import { initializeStorage } from "./utils/StorageManagement.utils.js";
+import { initializeStorage } from "./handlers/StorageManagement.handler.js";
 
 const app = e();
 const PORT = process.env.PORT || 3000;
@@ -12,9 +13,14 @@ app.use('/docs', docsRouter);
 
 try {
     await initializeStorage();
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
         console.log(`Server listening at port ${PORT}`);
     });
+
+    const wss = new WebSocketServer({ server });
+
+
+
 } catch(e) {
     console.log("Error starting server", e);
 }
