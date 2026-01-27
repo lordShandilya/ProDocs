@@ -2,7 +2,10 @@ import fs from "node:fs/promises";
 import pt from "path";
 import { fileURLToPath } from "node:url";
 
+
 const __dirname = pt.dirname(fileURLToPath(import.meta.url));
+const pendingWrites = new Map(); // id -> { timeout, update }
+const WRITE_DELAY = 2000; // 2 seconds
 
 const FileDirectory = new Map();
 
@@ -48,6 +51,48 @@ export async function FindFileById(id) {
     const content = await readFile(path);
     console.log(content);
     return {title, content};
+}
+
+async function writeFile(id, update) {
+    try {
+        const { path } = FileDirectory.get(id);
+        await fs.writeFile(path, update);
+        pendingWrites.delete(id);
+        console.log(`Saved document ${id} to storage.`);
+    } catch(e) {
+        console.error(`Failed to save document ${id}:`, e);
+    }
+}
+
+export async function DebouncedUpdateFileById(id, update) {
+    const fileMeta = FileDirectory.get(id);
+    if(!fileMeta) {
+        throw new Error("File not found");
+    }
+
+    if(pendingWrites.has(id)) {
+        const { timeout } = pendingWrites.get(id);
+        clearTimeout(timeout);
+    }
+    const timeout = setTimeout(async () => {
+        await writeFile(id, update);
+    }, WRITE_DELAY);
+    
+    pendingWrites.set(id, { timeout, update});
+    
+}
+
+export async function ForceSave(id) {
+    if(!pendingWrites.has(id)) {
+        console.log(`Nothing to write in document id:${id}`);
+        return;
+    }
+
+    const { timeout, update } = pendingWrites.get(id);
+    clearTimeout(timeout);
+    writeFile(id, update);
+    pendingWrites.delete(id);
+    
 }
 
 async function readFile(path) {

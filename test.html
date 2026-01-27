@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collaborative Document Editor</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .connection-status {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .connection-status.connected {
+            background: rgba(72, 187, 120, 0.9);
+        }
+        
+        .connection-status.disconnected {
+            background: rgba(245, 101, 101, 0.9);
+        }
+        
+        .setup-section {
+            padding: 30px;
+            border-bottom: 1px solid #e2e8f0;
+            background: #f7fafc;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 14px;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: all 0.2s;
+        }
+        
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex: 1;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #2d3748;
+        }
+        
+        .btn-secondary:hover {
+            background: #cbd5e0;
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+        
+        .editor-section {
+            padding: 30px;
+        }
+        
+        .document-info {
+            background: #edf2f7;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #2d3748;
+        }
+        
+        .document-info strong {
+            color: #667eea;
+        }
+        
+        textarea {
+            width: 100%;
+            min-height: 400px;
+            padding: 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: 'Courier New', monospace;
+            resize: vertical;
+            transition: all 0.2s;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .activity-log {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f7fafc;
+            border-radius: 8px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        .activity-log h3 {
+            font-size: 14px;
+            color: #4a5568;
+            margin-bottom: 10px;
+        }
+        
+        .log-entry {
+            padding: 8px 12px;
+            margin-bottom: 6px;
+            background: white;
+            border-left: 3px solid #667eea;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #2d3748;
+        }
+        
+        .log-entry .timestamp {
+            color: #718096;
+            font-size: 11px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📝 Collaborative Document Editor</h1>
+            <span class="connection-status disconnected" id="status">Disconnected</span>
+        </div>
+        
+        <div class="setup-section" id="setupSection">
+            <div class="input-group">
+                <label for="serverUrl">Server URL</label>
+                <input type="text" id="serverUrl" placeholder="http://localhost:3000" value="http://localhost:3000">
+            </div>
+            
+            <div class="input-group">
+                <label for="documentId">Document ID (leave empty to create new)</label>
+                <input type="text" id="documentId" placeholder="abc123xyz">
+            </div>
+            
+            <div class="input-group">
+                <label for="documentTitle">Document Title (for new documents)</label>
+                <input type="text" id="documentTitle" placeholder="My Collaborative Document">
+            </div>
+            
+            <div class="button-group">
+                <button class="btn-primary" id="connectBtn">Connect & Join</button>
+                <button class="btn-secondary" id="createBtn">Create New Document</button>
+            </div>
+        </div>
+        
+        <div class="editor-section hidden" id="editorSection">
+            <div class="document-info" id="docInfo">
+                <strong>Document ID:</strong> <span id="currentDocId">-</span>
+            </div>
+            
+            <textarea id="editor" placeholder="Start typing... Changes will sync in real-time!"></textarea>
+            
+            <div class="activity-log">
+                <h3>Activity Log</h3>
+                <div id="activityLog"></div>
+            </div>
+            
+            <div class="button-group" style="margin-top: 20px;">
+                <button class="btn-secondary" id="disconnectBtn">Disconnect</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let socket = null;
+        let currentDocumentId = null;
+        let isUpdating = false;
+        
+        const elements = {
+            status: document.getElementById('status'),
+            setupSection: document.getElementById('setupSection'),
+            editorSection: document.getElementById('editorSection'),
+            serverUrl: document.getElementById('serverUrl'),
+            documentId: document.getElementById('documentId'),
+            documentTitle: document.getElementById('documentTitle'),
+            connectBtn: document.getElementById('connectBtn'),
+            createBtn: document.getElementById('createBtn'),
+            disconnectBtn: document.getElementById('disconnectBtn'),
+            editor: document.getElementById('editor'),
+            currentDocId: document.getElementById('currentDocId'),
+            activityLog: document.getElementById('activityLog')
+        };
+        
+        function log(message) {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            const timestamp = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span class="timestamp">${timestamp}</span> ${message}`;
+            elements.activityLog.insertBefore(entry, elements.activityLog.firstChild);
+        }
+        
+        function updateStatus(connected) {
+            elements.status.textContent = connected ? 'Connected' : 'Disconnected';
+            elements.status.className = `connection-status ${connected ? 'connected' : 'disconnected'}`;
+        }
+        
+        async function createDocument() {
+            const serverUrl = elements.serverUrl.value;
+            const title = elements.documentTitle.value || 'Untitled Document';
+            const content = 'Start typing here...';
+            
+            try {
+                const response = await fetch(`${serverUrl}/docs/create`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title, content })
+                });
+                
+                if (!response.ok) throw new Error('Failed to create document');
+                
+                log('✅ Document created successfully');
+                
+                // Fetch the list to get the new document ID
+                const listResponse = await fetch(`${serverUrl}/docs/all`);
+                const data = await listResponse.json();
+                const newDoc = data.files[data.files.length - 1];
+                
+                elements.documentId.value = newDoc.id;
+                log(`📄 New document ID: ${newDoc.id}`);
+                
+            } catch (error) {
+                log(`❌ Error creating document: ${error.message}`);
+                alert('Failed to create document. Check console for details.');
+            }
+        }
+        
+        function connectToDocument() {
+            const serverUrl = elements.serverUrl.value;
+            const docId = elements.documentId.value;
+            
+            if (!docId) {
+                alert('Please enter a document ID or create a new document first');
+                return;
+            }
+            
+            socket = io(serverUrl);
+            currentDocumentId = docId;
+            
+            socket.on('connect', () => {
+                updateStatus(true);
+                log(`🔌 Connected to server (Socket ID: ${socket.id})`);
+                
+                socket.emit('join-document', docId);
+                log(`🚪 Joined document room: ${docId}`);
+                
+                loadDocument();
+            });
+            
+            socket.on('document-update', (update) => {
+                if (!isUpdating) {
+                    isUpdating = true;
+                    elements.editor.value = update;
+                    log('📥 Received update from another user');
+                    setTimeout(() => isUpdating = false, 100);
+                }
+            });
+            
+            socket.on('message', (msg) => {
+                log(`💬 ${msg}`);
+            });
+            
+            socket.on('disconnect', () => {
+                updateStatus(false);
+                log('❌ Disconnected from server');
+            });
+            
+            elements.setupSection.classList.add('hidden');
+            elements.editorSection.classList.remove('hidden');
+            elements.currentDocId.textContent = docId;
+        }
+        
+        async function loadDocument() {
+            const serverUrl = elements.serverUrl.value;
+            
+            try {
+                const response = await fetch(`${serverUrl}/docs/${currentDocumentId}`);
+                const data = await response.json();
+                
+                elements.editor.value = data.content;
+                log(`📖 Loaded document: ${data.title}`);
+                
+            } catch (error) {
+                log(`⚠️ Could not load document: ${error.message}`);
+            }
+        }
+        
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+            }
+            
+            currentDocumentId = null;
+            elements.editor.value = '';
+            elements.setupSection.classList.remove('hidden');
+            elements.editorSection.classList.add('hidden');
+            updateStatus(false);
+            log('👋 Manually disconnected');
+        }
+        
+        elements.editor.addEventListener('input', () => {
+            if (socket && !isUpdating) {
+                const content = elements.editor.value;
+                socket.emit('document-update', content);
+            }
+        });
+        
+        elements.connectBtn.addEventListener('click', connectToDocument);
+        elements.createBtn.addEventListener('click', createDocument);
+        elements.disconnectBtn.addEventListener('click', disconnect);
+        
+        log('🎉 Client ready! Create or join a document to start collaborating.');
+    </script>
+</body>
+</html>

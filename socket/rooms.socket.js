@@ -1,11 +1,11 @@
 import { Server } from 'socket.io';
 import { createServer } from 'http';
-const rooms = {};
-let currentRoom;
+import { DebouncedUpdateFileById, ForceSave } from '../handlers/StorageManagement.handler.js';
+
 
 export function InitializeRooms( app ) {
     const httpServer = createServer(app);
-    const io = new Server({
+    const io = new Server(httpServer,{
         cors: {origin: "*"}
     });
 
@@ -24,12 +24,26 @@ export function InitializeRooms( app ) {
             socket.currentRoom = document_id;
             console.log(`User joined ${document_id} room`);
 
-            socket.emit('message', `User ${socket} has joined!`);
-        })
+            socket.to(document_id).emit('message', `User ${socket.id} has joined!`);
+        });
+
+        socket.on('document-update', (update) => {
+            try {
+                DebouncedUpdateFileById(socket.currentRoom, update);
+                socket.to(socket.currentRoom).emit('document-update', update);
+            } catch(e) {
+                console.log("Error updating document: ", e);
+            }
+        });
+
+        socket.on('disconnect', () => {
+            ForceSave(socket.currentRoom);
+            socket.leave(socket.currentRoom);
+            console.log("User disconnected: ", socket.id);
+        });
     })
 
-    io.on('document-update', (data) => {
-        //TODO: Implement updation logic. 
-    })
+    return httpServer;
+    
 }
 
