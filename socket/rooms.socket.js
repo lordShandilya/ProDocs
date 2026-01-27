@@ -6,7 +6,9 @@ import { DebouncedUpdateFileById, ForceSave } from '../handlers/StorageManagemen
 export function InitializeRooms( app ) {
     const httpServer = createServer(app);
     const io = new Server(httpServer,{
-        cors: {origin: "*"}
+        cors: {origin: process.env.NODE_ENV === 'production'
+        ? []
+        : '*'}
     });
 
 

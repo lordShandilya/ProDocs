@@ -1,11 +1,14 @@
 import fs from "node:fs/promises";
 import pt from "path";
+import { mkdir } from 'fs/promises';
 import { fileURLToPath } from "node:url";
 
 
 const __dirname = pt.dirname(fileURLToPath(import.meta.url));
 const pendingWrites = new Map(); // id -> { timeout, update }
 const WRITE_DELAY = 2000; // 2 seconds
+const storageDir = pt.join(__dirname, '../storage');
+await mkdir(storageDir, { recursive: true });
 
 const FileDirectory = new Map();
 
