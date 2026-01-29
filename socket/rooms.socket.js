@@ -6,9 +6,9 @@ import { DebouncedUpdateFileById, ForceSave } from '../handlers/StorageManagemen
 export function InitializeRooms( app ) {
     const httpServer = createServer(app);
     const io = new Server(httpServer,{
-        cors: {origin: process.env.NODE_ENV === 'production'
-        ? []
-        : '*'}
+        cors: {origin: 'https://prodocs.onrender.com',
+            credentials: true
+        }
     });
 
 

@@ -10,9 +10,7 @@ dotenv.config();
 const app = e();
 const PORT = process.env.PORT || 3000;
 app.use(cors({
-    origin: process.env.NODE_ENV === 'production'
-        ? []
-        : '*',
+    origin: 'https://prodocs.onrender.com',
     credentials: true
 }));
 app.use(e.json());
