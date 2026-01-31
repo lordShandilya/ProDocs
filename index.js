@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import { InitializeRooms } from "./socket/rooms.socket.js";
 import docsRouter from "./routes/docs.route.js";
 import renderRouter from "./routes/render.route.js";
+import authRouter from "./routes/auth.route.js";
 import { initializeStorage } from "./handlers/StorageManagement.handler.js";
 
 dotenv.config();
@@ -17,6 +18,7 @@ app.use(e.urlencoded({extended: true}));
 
 app.use('/', renderRouter);
 app.use('/docs', docsRouter);
+app.use('/auth', authRouter);
 
 
 try {
