@@ -60,6 +60,17 @@
             gap: 12px;
         }
         
+        .user-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 12px;
+            background: #3c3c3c;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #89d185;
+        }
+        
         .connection-status {
             display: flex;
             align-items: center;
@@ -107,16 +118,11 @@
         
         /* Sidebar */
         .sidebar {
-            width: 300px;
+            width: 320px;
             background: #252526;
             border-right: 1px solid #3e3e42;
             padding: 20px;
             overflow-y: auto;
-            transition: margin-left 0.3s;
-        }
-        
-        .sidebar.hidden {
-            margin-left: -300px;
         }
         
         .sidebar h2 {
@@ -126,6 +132,10 @@
             letter-spacing: 0.5px;
             margin-bottom: 16px;
             font-weight: 600;
+        }
+        
+        .auth-section, .document-section {
+            margin-bottom: 24px;
         }
         
         .input-group {
@@ -349,6 +359,52 @@
             margin-bottom: 16px;
             line-height: 1.5;
         }
+        
+        .tab-container {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid #3e3e42;
+        }
+        
+        .tab {
+            padding: 8px 16px;
+            background: transparent;
+            border: none;
+            color: #858585;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .tab.active {
+            color: #007acc;
+            border-bottom-color: #007acc;
+        }
+        
+        .tab:hover {
+            color: #cccccc;
+        }
+        
+        .error-message {
+            padding: 8px 12px;
+            background: rgba(231, 76, 60, 0.1);
+            border: 1px solid #c72e0e;
+            border-radius: 4px;
+            color: #f48771;
+            font-size: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .success-message {
+            padding: 8px 12px;
+            background: rgba(46, 204, 113, 0.1);
+            border: 1px solid #89d185;
+            border-radius: 4px;
+            color: #89d185;
+            font-size: 12px;
+            margin-bottom: 12px;
+        }
     </style>
 </head>
 <body>
@@ -362,6 +418,10 @@
             <div class="doc-title-display" id="topDocTitle">No document open</div>
         </div>
         <div class="topbar-right">
+            <div class="user-badge hidden" id="userBadge">
+                <span>👤</span>
+                <span id="usernameDisplay">-</span>
+            </div>
             <div class="connection-status">
                 <span class="status-dot" id="statusDot"></span>
                 <span id="statusText">Disconnected</span>
@@ -374,44 +434,98 @@
     <div class="container">
         <!-- Sidebar -->
         <div class="sidebar" id="sidebar">
-            <h2>Document Setup</h2>
-            
-            <div class="info-message">
-                Create a new document or enter an existing document ID to start collaborating.
+            <!-- Auth Section (shown when not logged in) -->
+            <div class="auth-section" id="authSection">
+                <h2>Authentication</h2>
+                
+                <div class="tab-container">
+                    <button class="tab active" id="loginTab">Login</button>
+                    <button class="tab" id="registerTab">Register</button>
+                </div>
+                
+                <div id="authError" class="error-message hidden"></div>
+                <div id="authSuccess" class="success-message hidden"></div>
+                
+                <!-- Login Form -->
+                <div id="loginForm">
+                    <div class="input-group">
+                        <label for="loginEmail">Email</label>
+                        <input type="email" id="loginEmail" placeholder="you@example.com">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="loginPassword">Password</label>
+                        <input type="password" id="loginPassword" placeholder="••••••••">
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="btn-primary" id="loginBtn">Login</button>
+                    </div>
+                </div>
+                
+                <!-- Register Form -->
+                <div id="registerForm" class="hidden">
+                    <div class="input-group">
+                        <label for="registerEmail">Email</label>
+                        <input type="email" id="registerEmail" placeholder="you@example.com">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="registerUsername">Username</label>
+                        <input type="text" id="registerUsername" placeholder="cooluser123">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="registerPassword">Password (min 8 chars)</label>
+                        <input type="password" id="registerPassword" placeholder="••••••••">
+                    </div>
+                    
+                    <div class="button-group">
+                        <button class="btn-primary" id="registerBtn">Register</button>
+                    </div>
+                </div>
             </div>
             
-            <div class="input-group">
-                <label for="documentId">Document ID</label>
-                <input type="text" id="documentId" placeholder="Enter document ID or create new">
-            </div>
-            
-            <div class="input-group">
-                <label for="documentTitle">Document Title</label>
-                <input type="text" id="documentTitle" placeholder="My Document" value="Untitled Document">
-            </div>
-            
-            <div class="button-group">
-                <button class="btn-primary" id="connectBtn">Open Document</button>
-                <button class="btn-secondary" id="createBtn">Create New Document</button>
-            </div>
-            
-            <div class="button-group" style="margin-top: 24px;" id="disconnectGroup" class="hidden">
-                <button class="btn-danger" id="disconnectBtn">Close Document</button>
-            </div>
-
-            <div class="input-group" style="margin-top: 24px;">
-                <label for="serverUrl">Server URL (auto-detected)</label>
-                <input type="text" id="serverUrl" disabled>
+            <!-- Document Section (shown when logged in) -->
+            <div class="document-section hidden" id="documentSection">
+                <h2>Documents</h2>
+                
+                <div class="info-message">
+                    Create a new document or enter an existing document ID to start collaborating.
+                </div>
+                
+                <div class="input-group">
+                    <label for="documentId">Document ID</label>
+                    <input type="text" id="documentId" placeholder="Enter document ID or create new">
+                </div>
+                
+                <div class="input-group">
+                    <label for="documentTitle">Document Title</label>
+                    <input type="text" id="documentTitle" placeholder="My Document" value="Untitled Document">
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn-primary" id="connectBtn">Open Document</button>
+                    <button class="btn-secondary" id="createBtn">Create New Document</button>
+                </div>
+                
+                <div class="button-group" style="margin-top: 24px;" id="disconnectGroup" class="hidden">
+                    <button class="btn-danger" id="disconnectBtn">Close Document</button>
+                </div>
+                
+                <div class="button-group" style="margin-top: 24px;">
+                    <button class="btn-danger" id="logoutBtn">Logout</button>
+                </div>
             </div>
         </div>
 
         <!-- Editor Area -->
         <div class="editor-container">
             <div class="editor-header" id="editorHeader">
-                Welcome! Create or open a document to start editing.
+                Please login to start editing documents.
             </div>
             <div class="editor-wrapper">
-                <textarea id="editor" placeholder="Open a document to start editing..." disabled></textarea>
+                <textarea id="editor" placeholder="Login to start editing..." disabled></textarea>
             </div>
         </div>
 
@@ -427,6 +541,8 @@
         let currentDocumentId = null;
         let currentDocumentTitle = null;
         let isUpdating = false;
+        let authToken = null;
+        let currentUser = null;
         
         // Auto-detect server URL
         const serverUrl = window.location.origin;
@@ -434,9 +550,25 @@
         const elements = {
             statusDot: document.getElementById('statusDot'),
             statusText: document.getElementById('statusText'),
-            sidebar: document.getElementById('sidebar'),
+            userBadge: document.getElementById('userBadge'),
+            usernameDisplay: document.getElementById('usernameDisplay'),
+            authSection: document.getElementById('authSection'),
+            documentSection: document.getElementById('documentSection'),
+            loginTab: document.getElementById('loginTab'),
+            registerTab: document.getElementById('registerTab'),
+            loginForm: document.getElementById('loginForm'),
+            registerForm: document.getElementById('registerForm'),
+            authError: document.getElementById('authError'),
+            authSuccess: document.getElementById('authSuccess'),
+            loginEmail: document.getElementById('loginEmail'),
+            loginPassword: document.getElementById('loginPassword'),
+            loginBtn: document.getElementById('loginBtn'),
+            registerEmail: document.getElementById('registerEmail'),
+            registerUsername: document.getElementById('registerUsername'),
+            registerPassword: document.getElementById('registerPassword'),
+            registerBtn: document.getElementById('registerBtn'),
+            logoutBtn: document.getElementById('logoutBtn'),
             activityPanel: document.getElementById('activityPanel'),
-            serverUrl: document.getElementById('serverUrl'),
             documentId: document.getElementById('documentId'),
             documentTitle: document.getElementById('documentTitle'),
             connectBtn: document.getElementById('connectBtn'),
@@ -450,9 +582,6 @@
             toggleActivityBtn: document.getElementById('toggleActivityBtn')
         };
         
-        // Set auto-detected URL
-        elements.serverUrl.value = serverUrl;
-        
         function log(message, type = 'info') {
             const entry = document.createElement('div');
             entry.className = `log-entry ${type}`;
@@ -464,19 +593,189 @@
             elements.activityLog.insertBefore(entry, elements.activityLog.firstChild);
         }
         
+        function showError(message) {
+            elements.authError.textContent = message;
+            elements.authError.classList.remove('hidden');
+            setTimeout(() => elements.authError.classList.add('hidden'), 5000);
+        }
+        
+        function showSuccess(message) {
+            elements.authSuccess.textContent = message;
+            elements.authSuccess.classList.remove('hidden');
+            setTimeout(() => elements.authSuccess.classList.add('hidden'), 3000);
+        }
+        
         function updateStatus(connected) {
             elements.statusText.textContent = connected ? 'Connected' : 'Disconnected';
             elements.statusDot.className = `status-dot ${connected ? 'connected' : ''}`;
         }
         
+        function showAuthUI() {
+            elements.authSection.classList.remove('hidden');
+            elements.documentSection.classList.add('hidden');
+            elements.userBadge.classList.add('hidden');
+            elements.editor.disabled = true;
+            elements.editor.placeholder = 'Login to start editing...';
+            elements.editorHeader.textContent = 'Please login to start editing documents.';
+        }
+        
+        function showDocumentUI() {
+            elements.authSection.classList.add('hidden');
+            elements.documentSection.classList.remove('hidden');
+            elements.userBadge.classList.remove('hidden');
+            elements.usernameDisplay.textContent = currentUser.username;
+            elements.editorHeader.textContent = 'Welcome! Create or open a document to start editing.';
+        }
+        
+        // Tab switching
+        elements.loginTab.addEventListener('click', () => {
+            elements.loginTab.classList.add('active');
+            elements.registerTab.classList.remove('active');
+            elements.loginForm.classList.remove('hidden');
+            elements.registerForm.classList.add('hidden');
+        });
+        
+        elements.registerTab.addEventListener('click', () => {
+            elements.registerTab.classList.add('active');
+            elements.loginTab.classList.remove('active');
+            elements.registerForm.classList.remove('hidden');
+            elements.loginForm.classList.add('hidden');
+        });
+        
+        // Login
+        elements.loginBtn.addEventListener('click', async () => {
+            const email = elements.loginEmail.value.trim();
+            const password = elements.loginPassword.value;
+            
+            if (!email || !password) {
+                showError('Please enter email and password');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${serverUrl}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    showError(data.error || 'Login failed');
+                    return;
+                }
+                
+                authToken = data.token;
+                currentUser = data.user;
+                localStorage.setItem('authToken', authToken);
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                
+                log(`Logged in as ${currentUser.username}`, 'success');
+                showSuccess('Login successful!');
+                showDocumentUI();
+                
+            } catch (error) {
+                showError('Login failed. Please try again.');
+                log(`Login error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Register
+        elements.registerBtn.addEventListener('click', async () => {
+            const email = elements.registerEmail.value.trim();
+            const username = elements.registerUsername.value.trim();
+            const password = elements.registerPassword.value;
+            
+            if (!email || !username || !password) {
+                showError('Please fill in all fields');
+                return;
+            }
+            
+            if (password.length < 8) {
+                showError('Password must be at least 8 characters');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${serverUrl}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    showError(data.error || 'Registration failed');
+                    return;
+                }
+                
+                authToken = data.token;
+                currentUser = data.user;
+                localStorage.setItem('authToken', authToken);
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                
+                log(`Registered as ${currentUser.username}`, 'success');
+                showSuccess('Registration successful!');
+                showDocumentUI();
+                
+            } catch (error) {
+                showError('Registration failed. Please try again.');
+                log(`Registration error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Logout
+        elements.logoutBtn.addEventListener('click', () => {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+            }
+            
+            authToken = null;
+            currentUser = null;
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('currentUser');
+            
+            elements.editor.value = '';
+            elements.topDocTitle.textContent = 'No document open';
+            updateStatus(false);
+            showAuthUI();
+            log('Logged out successfully', 'info');
+        });
+        
+        // Check for existing session on load
+        function checkExistingSession() {
+            const storedToken = localStorage.getItem('authToken');
+            const storedUser = localStorage.getItem('currentUser');
+            
+            if (storedToken && storedUser) {
+                authToken = storedToken;
+                currentUser = JSON.parse(storedUser);
+                showDocumentUI();
+                log(`Restored session for ${currentUser.username}`, 'success');
+            } else {
+                showAuthUI();
+            }
+        }
+        
         async function createDocument() {
+            if (!authToken) {
+                showError('You must be logged in');
+                return;
+            }
+            
             const title = elements.documentTitle.value || 'Untitled Document';
             const content = '';
             
             try {
                 const response = await fetch(`${serverUrl}/docs/create`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
                     body: JSON.stringify({ title, content })
                 });
                 
@@ -484,20 +783,20 @@
                 
                 log('Document created successfully', 'success');
                 
-                // Fetch the list to get the new document ID
-                const listResponse = await fetch(`${serverUrl}/docs/all`);
+                const listResponse = await fetch(`${serverUrl}/docs/all`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
                 const data = await listResponse.json();
                 const newDoc = data.files[data.files.length - 1];
                 
                 elements.documentId.value = newDoc.id;
                 log(`New document ID: ${newDoc.id}`, 'info');
                 
-                // Auto-connect to new document
                 setTimeout(() => connectToDocument(), 500);
                 
             } catch (error) {
                 log(`Error creating document: ${error.message}`, 'error');
-                alert('Failed to create document. Check the activity log for details.');
+                alert('Failed to create document. You may need to login again.');
             }
         }
         
@@ -509,7 +808,16 @@
                 return;
             }
             
-            socket = io(serverUrl);
+            if (!authToken) {
+                alert('You must be logged in to connect');
+                return;
+            }
+            
+            socket = io(serverUrl, {
+                auth: {
+                    token: authToken
+                }
+            });
             currentDocumentId = docId;
             
             socket.on('connect', () => {
@@ -522,11 +830,12 @@
                 loadDocument();
             });
             
-            socket.on('document-update', (update) => {
+            socket.on('document-update', (data) => {
                 if (!isUpdating) {
                     isUpdating = true;
-                    elements.editor.value = update;
-                    log('Received update from collaborator', 'info');
+                    elements.editor.value = data.content || data;
+                    const author = data.author || 'Another user';
+                    log(`Update from ${author}`, 'info');
                     setTimeout(() => isUpdating = false, 100);
                 }
             });
@@ -540,7 +849,14 @@
                 log('Disconnected from server', 'error');
             });
             
-            // Update UI
+            socket.on('connect_error', (error) => {
+                log(`Connection error: ${error.message}`, 'error');
+                if (error.message.includes('Authentication')) {
+                    alert('Authentication failed. Please login again.');
+                    elements.logoutBtn.click();
+                }
+            });
+            
             elements.editor.disabled = false;
             elements.editor.placeholder = 'Start typing...';
             elements.disconnectGroup.classList.remove('hidden');
@@ -551,7 +867,9 @@
         
         async function loadDocument() {
             try {
-                const response = await fetch(`${serverUrl}/docs/${currentDocumentId}`);
+                const response = await fetch(`${serverUrl}/docs/${currentDocumentId}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
                 const data = await response.json();
                 
                 elements.editor.value = data.content;
@@ -586,12 +904,10 @@
             log('Disconnected from document', 'info');
         }
         
-        // Toggle activity panel
         elements.toggleActivityBtn.addEventListener('click', () => {
             elements.activityPanel.classList.toggle('hidden');
         });
         
-        // Editor input handler
         elements.editor.addEventListener('input', () => {
             if (socket && !isUpdating) {
                 const content = elements.editor.value;
@@ -599,13 +915,13 @@
             }
         });
         
-        // Button handlers
         elements.connectBtn.addEventListener('click', connectToDocument);
         elements.createBtn.addEventListener('click', createDocument);
         elements.disconnectBtn.addEventListener('click', disconnect);
         
-        log('Client ready! Server URL auto-detected: ' + serverUrl, 'success');
-        log('Create a new document or enter an existing document ID to begin', 'info');
+        // Initialize on page load
+        checkExistingSession();
+        log('Client ready! Server URL: ' + serverUrl, 'success');
     </script>
 </body>
 </html>

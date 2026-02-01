@@ -1,5 +1,6 @@
 import { Server } from 'socket.io';
 import { createServer } from 'http';
+import jwt from 'jsonwebtoken';
 import { DebouncedUpdateFileById, ForceSave } from '../handlers/StorageManagement.handler.js';
 
 
@@ -9,6 +10,28 @@ export function InitializeRooms( app ) {
         cors: {origin: '*'
         }
     });
+
+    io.use((socket, next) => {
+        const token = socket.handshake.auth.token;
+
+        if(!token) {
+            return next(new Error('Authentication Error: No token provided.'));
+        }
+
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+            socket.user = {
+                id: decoded.id,
+                username: decoded.username,
+                email: decoded.email
+            };
+
+            next();
+        } catch(e) {
+            next(new Error('Authentication Error: Invalid Token'));
+        }
+    })
 
 
     io.on('connection', (socket) => {
@@ -23,15 +46,18 @@ export function InitializeRooms( app ) {
             }
             socket.join(document_id);
             socket.currentRoom = document_id;
-            console.log(`User joined ${document_id} room`);
+            console.log(`User ${socket.user.username} joined ${document_id} room`);
 
-            socket.to(document_id).emit('message', `User ${socket.id} has joined!`);
+            socket.to(document_id).emit('message', `User ${socket.user.username} has joined!`);
         });
 
         socket.on('document-update', (update) => {
             try {
                 DebouncedUpdateFileById(socket.currentRoom, update);
-                socket.to(socket.currentRoom).emit('document-update', update);
+                socket.to(socket.currentRoom).emit('document-update', {
+                    content: update,
+                    author: socket.user.username
+                });
             } catch(e) {
                 console.log("Error updating document: ", e);
             }
@@ -40,7 +66,7 @@ export function InitializeRooms( app ) {
         socket.on('disconnect', () => {
             ForceSave(socket.currentRoom);
             socket.leave(socket.currentRoom);
-            console.log("User disconnected: ", socket.id);
+            console.log(`User ${socket.user.username} disconnected.`);
         });
     })
 

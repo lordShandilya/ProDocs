@@ -1,6 +1,6 @@
 import { Router } from "express";
 import jwt from "jsonwebtoken";
-import { CreateNewUser, ValidateUserPassword, FindUserByEmail } from "../utils/UserManagement.utils.js";
+import { CreateNewUser, ValidateUserPassword, FindUserByEmail } from "../handlers/UserManagement.handler.js";
 
 const router = Router();
 

@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { CreateNewFile, FindFileById, ListAllFiles } from "../handlers/StorageManagement.handler.js";
+import { authenticateToken } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
-router.post('/create', async (req, res) => {
+router.post('/create', authenticateToken, async (req, res) => {
     const { title, content } = req.body;
     
     try {
@@ -17,13 +18,13 @@ router.post('/create', async (req, res) => {
 });
 
 
-router.get('/all', (req, res) => {
+router.get('/all', authenticateToken, (req, res) => {
     const list = ListAllFiles();
     
     res.json({ files: list });
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     try {
         const { title, content } = await FindFileById(id);
