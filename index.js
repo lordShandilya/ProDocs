@@ -5,8 +5,7 @@ import { InitializeRooms } from "./socket/rooms.socket.js";
 import docsRouter from "./routes/docs.route.js";
 import renderRouter from "./routes/render.route.js";
 import authRouter from "./routes/auth.route.js";
-import { initializeStorage } from "./handlers/StorageManagement.handler.js";
-import { initializeUsers } from "./handlers/UserManagement.handler.js";
+
 
 dotenv.config();
 const app = e();
@@ -23,8 +22,7 @@ app.use('/auth', authRouter);
 
 
 try {
-    await initializeStorage();
-    await initializeUsers();
+
     const httpServer = InitializeRooms( app );
 
     httpServer.listen(PORT, () => {

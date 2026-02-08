@@ -1,7 +1,7 @@
 import { Server } from 'socket.io';
 import { createServer } from 'http';
 import jwt from 'jsonwebtoken';
-import { DebouncedUpdateFileById, ForceSave } from '../handlers/StorageManagement.handler.js';
+import { UpdateDocumentContent } from '../handlers/StorageManagement.handler.js';
 
 
 export function InitializeRooms( app ) {
@@ -53,7 +53,7 @@ export function InitializeRooms( app ) {
 
         socket.on('document-update', (update) => {
             try {
-                DebouncedUpdateFileById(socket.currentRoom, update);
+                UpdateDocumentContent(socket.currentRoom, update);
                 socket.to(socket.currentRoom).emit('document-update', {
                     content: update,
                     author: socket.user.username
@@ -64,7 +64,7 @@ export function InitializeRooms( app ) {
         });
 
         socket.on('disconnect', () => {
-            ForceSave(socket.currentRoom);
+            // ForceSave(socket.currentRoom);
             socket.leave(socket.currentRoom);
             console.log(`User ${socket.user.username} disconnected.`);
         });

@@ -1,102 +1,77 @@
-import fs from "node:fs/promises";
-import pt from "path";
-import { fileURLToPath } from "node:url";
+import pool from "../utils/database.utils.js";
 import bcrypt from "bcryptjs";
 
-const __dirname = pt.dirname(fileURLToPath(import.meta.url));
-const UserDirectory = new Map(); 
-
-
-const usersDir = pt.join(__dirname, '../users');
-await fs.mkdir(usersDir, { recursive: true });
-
-export async function initializeUsers() {
-    try {
-        const files = await fs.readdir(usersDir); 
-        for (const file of files) { 
-            if (file.endsWith('_meta.json')) {
-                try {
-                    const metaData = JSON.parse(
-                        await fs.readFile(pt.join(usersDir, file), 'utf-8')
-                    );
-                    const email = file.replace('_meta.json', '');
-                    UserDirectory.set(email, {
-                        id: metaData.id, 
-                        username: metaData.username,
-                        hashedPassword: metaData.hashedPassword,
-                        createdAt: metaData.createdAt
-                    });
-                } catch (e) {
-                    console.error(`Failed to load user file ${file}:`, e);
-                    continue;
-                }
-            }
-        }
-        console.log(`Loaded ${UserDirectory.size} users`);
-    } catch (e) {
-        throw new Error('Unable to initialize users directory: ' + e.message);
-    }
-}
 
 export async function CreateNewUser(email, username, password) {
-    if (UserDirectory.has(email)) {
-        throw new Error('Email already exists');
+    const existingUser = await pool.query(
+        'SELECT * FROM users WHERE email = $1 OR username = $2',
+        [email, username]
+    );
+
+    if(existingUser.rows.length > 0) {
+        const existing = existingUser.rows[0];
+        if(existing.email === email) {
+            throw new Error('Email already exists.');
+        }
+        throw new Error('Username already taken.');
     }
-    
-    const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
-    const createdAt = new Date().toISOString();
-    const metaPath = pt.join(usersDir, `${email}_meta.json`);
+
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    try {
-        await fs.writeFile(
-            metaPath,
-            JSON.stringify({ id, username, hashedPassword, createdAt }, null, 2)
-        );
-        UserDirectory.set(email, { id, username, hashedPassword, createdAt });
-        
-        
-        return { id, email, username, createdAt };
-    } catch (e) {
-        throw new Error('Failed to create user: ' + e.message);
-    }
+    const result = await pool.query(
+        `INSERT INTO users (email, username, password_hash) 
+         VALUES ($1, $2, $3) 
+         RETURNING id, email, username, created_at`,
+        [email, username, hashedPassword]
+    );
+    
+    return result.rows[0];
+
+
 }
 
 export async function FindUserByEmail(email) {
-    const user = UserDirectory.get(email);
-    if (!user) {
-        return null; 
-    }
-    
-    
-    return {
-        id: user.id,
-        email,
-        username: user.username,
-        createdAt: user.createdAt
-    };
+    const result = await pool.query(
+        `SELECT id, username, email, created_at FROM users
+        WHERE email = $1`,
+        [email]
+    );
+
+    return result.rows.length > 0 ? result.rows[0] : null;
+}
+
+export async function FindUserById(id) {
+    const result = await pool.query(
+        `SELECT id, username, email, created_at FROM users
+        WHERE id = $1`,
+        [id]
+    );
+
+    return result.rows.length > 0 ? result.rows[0] : null;
 }
 
 export async function ValidateUserPassword(email, password) {
-    const user = UserDirectory.get(email);
-    
-    
-    if (!user) {
-        
+    const result = await pool.query(
+        'SELECT id, username, email, password_hash, created_at FROM users WHERE email = $1',
+        [email]
+    );
+
+    if(result.rows.length === 0) {
         await bcrypt.hash(password, 10);
         return null;
     }
-    
-    const isValid = await bcrypt.compare(password, user.hashedPassword);
-    
-    if (isValid) {
+
+    const user = result.rows[0];
+    const isValid = await bcrypt.compare(password, user.password_hash);
+
+    if(isValid) {
         return {
             id: user.id,
-            email,
             username: user.username,
-            createdAt: user.createdAt
+            email: user.email,
+            created_at: user.created_at
         };
     }
-    
+
     return null;
 }

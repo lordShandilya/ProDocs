@@ -1,119 +1,89 @@
-import fs from "node:fs/promises";
-import pt from "path";
-import { mkdir } from 'fs/promises';
-import { fileURLToPath } from "node:url";
+import pool from '../utils/database.utils.js';
 
-
-const __dirname = pt.dirname(fileURLToPath(import.meta.url));
-const pendingWrites = new Map(); // id -> { timeout, update }
-const WRITE_DELAY = 2000; // 2 seconds
-const storageDir = pt.join(__dirname, '../storage');
-await mkdir(storageDir, { recursive: true });
-
-const FileDirectory = new Map();
-
-export async function initializeStorage() {
-    try {
-        const files = await fs.readdir(pt.join(__dirname, '../storage'));
-        for (const file of files) {
-            if (file.endsWith('_meta.json')) {
-                try {
-                    const meta = JSON.parse(await fs.readFile(pt.join(__dirname, `../storage/${file}`), 'utf-8'));
-                    FileDirectory.set(file.replace('_meta.json', ''), { title: meta.title, path: pt.join( __dirname, `../storage/${file.replace('_meta.json', '.txt')}`) });
-
-                } catch(e) {
-                    continue;
-                }
-            }
-        }
-    } catch (error) {
-        throw new Error("Failed to initialize storage", error);
-    }
-}
-
-export async function CreateNewFile(title, content) {
-    const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
-    const file = pt.join(__dirname, `../storage/${id}.txt`);
-    const metaFile = pt.join(__dirname, `../storage/${id}_meta.json`);
-
-    try {
-        await fs.writeFile(file, content);
-        await fs.writeFile(metaFile, JSON.stringify({ title }));
-        FileDirectory.set(id, { title, path: file });
-    } catch (error) {
-        throw new Error("Failed to create file", error);
-    }
-}
-
-export async function FindFileById(id) {
-    const fileMeta = FileDirectory.get(id);
-    if (!fileMeta) {
-        throw new Error("File not found");
-    }
-    const { title, path } = fileMeta;
-    const content = await readFile(path);
-    console.log(content);
-    return {title, content};
-}
-
-async function writeFile(id, update) {
-    try {
-        const { path } = FileDirectory.get(id);
-        await fs.writeFile(path, update);
-        pendingWrites.delete(id);
-        console.log(`Saved document ${id} to storage.`);
-    } catch(e) {
-        console.error(`Failed to save document ${id}:`, e);
-    }
-}
-
-export async function DebouncedUpdateFileById(id, update) {
-    const fileMeta = FileDirectory.get(id);
-    if(!fileMeta) {
-        throw new Error("File not found");
-    }
-
-    if(pendingWrites.has(id)) {
-        const { timeout } = pendingWrites.get(id);
-        clearTimeout(timeout);
-    }
-    const timeout = setTimeout(async () => {
-        await writeFile(id, update);
-    }, WRITE_DELAY);
+export async function CreateNewDocument(title, content, ownerId) {
+    const result = await pool.query(
+        `INSERT INTO documents (title, content, owner_id) 
+         VALUES ($1, $2, $3) 
+         RETURNING id, title, content, owner_id, created_at, updated_at`,
+        [title, content || '', ownerId]
+    );
     
-    pendingWrites.set(id, { timeout, update});
+    return result.rows[0];
+}
+
+export async function FindDocumentById(documentId) {
+    const result = await pool.query(
+        `SELECT d.id, d.title, d.content, d.owner_id, d.created_at, d.updated_at,
+                u.username as owner_username, u.email as owner_email
+         FROM documents d
+         JOIN users u ON d.owner_id = u.id
+         WHERE d.id = $1`,
+        [documentId]
+    );
     
-}
-
-export async function ForceSave(id) {
-    if(!pendingWrites.has(id)) {
-        console.log(`Nothing to write in document id:${id}`);
-        return;
+    if (result.rows.length === 0) {
+        throw new Error('Document not found');
     }
-
-    const { timeout, update } = pendingWrites.get(id);
-    clearTimeout(timeout);
-    writeFile(id, update);
-    pendingWrites.delete(id);
     
+    return result.rows[0];
 }
 
-async function readFile(path) {
-    let content;
-    try {
-        content = await fs.readFile(path, 'utf-8');
-        return content;
-    } catch(e) {
-        throw new Error("Failed to read file", e);
+export async function UpdateDocumentContent(documentId, content) {
+    const result = await pool.query(
+        `UPDATE documents 
+         SET content = $1, updated_at = CURRENT_TIMESTAMP 
+         WHERE id = $2 
+         RETURNING id, title, content, updated_at`,
+        [content, documentId]
+    );
+    
+    if (result.rows.length === 0) {
+        throw new Error('Document not found');
     }
+    
+    return result.rows[0];
 }
 
-export function ListAllFiles() {
-    const files = [];
-    for (const [id, { title, path }] of FileDirectory.entries()) {
-        files.push({ id, title });
+export async function ListDocumentsByOwner(ownerId) {
+    const result = await pool.query(
+        `SELECT id, title, created_at, updated_at 
+         FROM documents 
+         WHERE owner_id = $1 
+         ORDER BY updated_at DESC`,
+        [ownerId]
+    );
+    
+    return result.rows;
+}
+
+export async function ListAllDocuments() {
+    const result = await pool.query(
+        `SELECT d.id, d.title, d.created_at, d.updated_at,
+                u.username as owner_username
+         FROM documents d
+         JOIN users u ON d.owner_id = u.id
+         ORDER BY d.updated_at DESC`
+    );
+    
+    return result.rows;
+}
+
+export async function DeleteDocument(documentId, userId) {
+    // Check ownership
+    const doc = await pool.query(
+        'SELECT owner_id FROM documents WHERE id = $1',
+        [documentId]
+    );
+    
+    if (doc.rows.length === 0) {
+        throw new Error('Document not found');
     }
-
-    return files;
+    
+    if (doc.rows[0].owner_id !== userId) {
+        throw new Error('Unauthorized: You do not own this document');
+    }
+    
+    await pool.query('DELETE FROM documents WHERE id = $1', [documentId]);
+    
+    return { message: 'Document deleted successfully' };
 }
-
