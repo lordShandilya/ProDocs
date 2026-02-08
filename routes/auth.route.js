@@ -54,7 +54,7 @@ router.post('/register', async (req, res) => {
         if (e.message.includes('already exists')) {
             return res.status(409).json({ error: 'Email already registered' });
         }
-        res.status(500).json({ error: 'Failed to create user' });
+        res.status(500).json({ error: 'Failed to create user', e }); // Remove it later 
     }
 });
 
