@@ -60,7 +60,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
     }
 });
 
-router.delete(':/id', authenticateToken, async (req, res) => {
+router.delete('/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
 
     try {
